@@ -28,7 +28,9 @@ static struct k_work toggle_MTD_SED_work;
 static struct k_work provisioning_work;
 static struct k_work on_connect_work;
 static struct k_work on_disconnect_work;
-
+//m
+static struct k_work customMessage_work;
+//m/
 mtd_mode_toggle_cb_t on_mtd_mode_toggle;
 
 /* Options supported by the server */
@@ -246,7 +248,25 @@ static void submit_work_if_connected(struct k_work *work)
 		LOG_INF("Connection is broken");
 	}
 }
+//m
+static void customMessage(struct k_work *item)
+{
+	uint8_t payload = (uint8_t)'V'; //Server side reads it in character format.
 
+	ARG_UNUSED(item);
+
+	if (unique_local_addr.sin6_addr.s6_addr16[0] == 0) {
+		LOG_WRN("Peer address not set. Activate 'provisioning' option "
+			"on the server side");
+		return;
+	}
+
+	LOG_INF("Send 'light' request to: %s", unique_local_addr_str);
+	coap_send_request(COAP_METHOD_PUT,
+			  (const struct sockaddr *)&unique_local_addr,
+			  light_option, &payload, sizeof(payload), NULL);
+}
+//m/
 void coap_client_utils_init(ot_connection_cb_t on_connect,
 			    ot_disconnection_cb_t on_disconnect,
 			    mtd_mode_toggle_cb_t on_toggle)
@@ -260,6 +280,9 @@ void coap_client_utils_init(ot_connection_cb_t on_connect,
 	k_work_init(&unicast_light_work, toggle_one_light);
 	k_work_init(&multicast_light_work, toggle_mesh_lights);
 	k_work_init(&provisioning_work, send_provisioning_request);
+	//m
+	k_work_init(&customMessage_work,customMessage);
+	//m/
 
 	openthread_state_changed_cb_register(openthread_get_default_context(), &ot_state_chaged_cb);
 	openthread_start(openthread_get_default_context());
@@ -285,7 +308,11 @@ void coap_client_send_provisioning_request(void)
 {
 	submit_work_if_connected(&provisioning_work);
 }
-
+//m
+void coap_client_customMessage(void) {
+	submit_work_if_connected(&customMessage_work);
+}
+//m/
 void coap_client_toggle_minimal_sleepy_end_device(void)
 {
 	if (IS_ENABLED(CONFIG_OPENTHREAD_MTD_SED)) {
