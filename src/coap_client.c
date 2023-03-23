@@ -13,10 +13,6 @@
 
 #include "coap_client_utils.h"
 
-#if CONFIG_BT_NUS
-#include "ble_utils.h"
-#endif
-
 LOG_MODULE_REGISTER(coap_client, CONFIG_COAP_CLIENT_LOG_LEVEL);
 
 #define OT_CONNECTION_LED DK_LED1
