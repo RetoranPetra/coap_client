@@ -30,6 +30,9 @@ static struct k_work on_connect_work;
 static struct k_work on_disconnect_work;
 //m
 static struct k_work customMessage_work;
+
+
+static uint8_t *customMessagePayload = NULL;
 //m/
 mtd_mode_toggle_cb_t on_mtd_mode_toggle;
 
@@ -251,8 +254,6 @@ static void submit_work_if_connected(struct k_work *work)
 //m
 static void customMessage(struct k_work *item)
 {
-	uint8_t payload = (uint8_t)'V'; //Server side reads it in character format.
-
 	ARG_UNUSED(item);
 
 	if (unique_local_addr.sin6_addr.s6_addr16[0] == 0) {
@@ -262,9 +263,14 @@ static void customMessage(struct k_work *item)
 	}
 
 	LOG_INF("Send 'light' request to: %s", unique_local_addr_str);
-	coap_send_request(COAP_METHOD_PUT,
+	if (coap_send_request(COAP_METHOD_PUT,
 			  (const struct sockaddr *)&unique_local_addr,
-			  light_option, &payload, sizeof(payload), NULL);
+			  light_option, customMessagePayload, sizeof(customMessagePayload), NULL) >= 0) {
+				LOG_DBG("Send success! %s",(char*)customMessagePayload);
+			  }
+	else {
+		LOG_DBG("Send error! %s",(char*)customMessagePayload);
+	}
 }
 //m/
 void coap_client_utils_init(ot_connection_cb_t on_connect,
@@ -309,7 +315,9 @@ void coap_client_send_provisioning_request(void)
 	submit_work_if_connected(&provisioning_work);
 }
 //m
-void coap_client_customMessage(void) {
+void coap_client_customMessage(uint8_t *messageRef) {
+	free(customMessagePayload);
+	customMessagePayload = messageRef;
 	submit_work_if_connected(&customMessage_work);
 }
 //m/

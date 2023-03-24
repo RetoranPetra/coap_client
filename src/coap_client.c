@@ -61,7 +61,8 @@ static void on_button_changed(uint32_t button_state, uint32_t has_changed)
 	}
 
 	if (buttons & DK_BTN2_MSK) {
-		coap_client_customMessage();
+		uint8_t* msg = (uint8_t*)"Hello world!";
+		coap_client_customMessage(msg);
 	}
 
 	if (buttons & DK_BTN3_MSK) {
