@@ -11,6 +11,7 @@
 #include <zephyr/device.h>
 #include <zephyr/pm/device.h>
 
+#include <coap_server_client_interface.h>
 #include "coap_client_utils.h"
 
 LOG_MODULE_REGISTER(coap_client, CONFIG_COAP_CLIENT_LOG_LEVEL);
@@ -52,6 +53,8 @@ static void on_mtd_mode_toggle(uint32_t med)
 	dk_set_led(MTD_SED_LED, med);
 }
 
+uint8_t messageBuffer[MY_MESSAGE_SIZE] = {};
+
 static void on_button_changed(uint32_t button_state, uint32_t has_changed)
 {
 	uint32_t buttons = button_state & has_changed;
@@ -61,8 +64,11 @@ static void on_button_changed(uint32_t button_state, uint32_t has_changed)
 	}
 
 	if (buttons & DK_BTN2_MSK) {
-		uint8_t* msg = (uint8_t*)"Hello world!";
-		coap_client_customMessage(msg);
+		char msg[13] = "Hello world!";
+		for (int i = 0;i<13;i++) {
+			messageBuffer[i] = (uint8_t)msg[i];
+		}
+		coap_client_customMessage(messageBuffer);
 	}
 
 	if (buttons & DK_BTN3_MSK) {

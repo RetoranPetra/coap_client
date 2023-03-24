@@ -32,7 +32,7 @@ static struct k_work on_disconnect_work;
 static struct k_work customMessage_work;
 
 
-static uint8_t *customMessagePayload = NULL;
+static uint8_t customMessagePayload[MY_MESSAGE_SIZE] = {};
 //m/
 mtd_mode_toggle_cb_t on_mtd_mode_toggle;
 
@@ -316,8 +316,7 @@ void coap_client_send_provisioning_request(void)
 }
 //m
 void coap_client_customMessage(uint8_t *messageRef) {
-	free(customMessagePayload);
-	customMessagePayload = messageRef;
+	memcpy(customMessagePayload,messageRef,MY_MESSAGE_SIZE);
 	submit_work_if_connected(&customMessage_work);
 }
 //m/
