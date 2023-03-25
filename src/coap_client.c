@@ -10,7 +10,7 @@
 #include <ram_pwrdn.h>
 #include <zephyr/device.h>
 #include <zephyr/pm/device.h>
-
+#include <coap_server_client_interface.h>
 #include "coap_client_utils.h"
 
 LOG_MODULE_REGISTER(coap_client, CONFIG_COAP_CLIENT_LOG_LEVEL);
@@ -61,7 +61,13 @@ static void on_button_changed(uint32_t button_state, uint32_t has_changed)
 	}
 
 	if (buttons & DK_BTN2_MSK) {
-		coap_client_toggle_mesh_lights();
+		//coap_client_toggle_mesh_lights();
+
+		//New event type example implementation
+		//m
+		char msg[GENERIC_PAYLOAD_SIZE] = "Hello world! I am a client.";
+		coap_client_genericSend(msg);
+		//m/
 	}
 
 	if (buttons & DK_BTN3_MSK) {
