@@ -10,8 +10,11 @@
 #include <ram_pwrdn.h>
 #include <zephyr/device.h>
 #include <zephyr/pm/device.h>
-#include <coap_server_client_interface.h>
+#include <C:\Nordic\Git_apps\Message_On_Top_Server\coap_server\interface\coap_server_client_interface.h>
 #include "coap_client_utils.h"
+//L
+#include <zephyr/drivers/gpio.h>
+//L
 
 LOG_MODULE_REGISTER(coap_client, CONFIG_COAP_CLIENT_LOG_LEVEL);
 
@@ -19,6 +22,9 @@ LOG_MODULE_REGISTER(coap_client, CONFIG_COAP_CLIENT_LOG_LEVEL);
 #define BLE_CONNECTION_LED DK_LED2
 #define MTD_SED_LED DK_LED3
 
+//L
+//const struct device *t_pulse = DEVICE_DT_GET(DT_NODELABEL(gpio1));
+//L
 
 static void on_ot_connect(struct k_work *item)
 {
@@ -57,21 +63,22 @@ static void on_button_changed(uint32_t button_state, uint32_t has_changed)
 	uint32_t buttons = button_state & has_changed;
 
 	if (buttons & DK_BTN1_MSK) {
-		coap_client_toggle_one_light();
+		coap_client_motors_forward(); //Sends motors forward message
 	}
 
 	if (buttons & DK_BTN2_MSK) {
 		//coap_client_toggle_mesh_lights();
+		coap_client_toggle_one_light(); //Sends stop motor message
 
-		//New event type example implementation
-		//m
+		/*
 		char msg[GENERIC_PAYLOAD_SIZE] = "Hello world! I am a client.";
 		coap_client_genericSend(msg);
-		//m/
+		*/
 	}
 
 	if (buttons & DK_BTN3_MSK) {
-		coap_client_toggle_minimal_sleepy_end_device();
+		//coap_client_toggle_minimal_sleepy_end_device();
+		coap_client_motors_backward(); //Sends motors backward message
 	}
 
 	if (buttons & DK_BTN4_MSK) {
@@ -88,6 +95,8 @@ void main(void)
 
 	LOG_INF("Start CoAP-client sample");
 
+	gpio_init();
+	
 	if (IS_ENABLED(CONFIG_RAM_POWER_DOWN_LIBRARY)) {
 		power_down_unused_ram();
 	}
@@ -104,5 +113,16 @@ void main(void)
 		return;
 	}
 
+	//Transmission pulse
+	//Check t_pulse ready
+	/*if (!device_is_ready(t_pulse)){
+		LOG_ERR("Transmission pulse not ready\r\n");
+		return 1 ;
+	}
+
+	ret = gpio_pin_configure(t_pulse, 1, GPIO_OUTPUT_INACTIVE);
+	if (ret < 0) {
+		return 1 ;
+	}*/
 	coap_client_utils_init(on_ot_connect, on_ot_disconnect, on_mtd_mode_toggle);
 }

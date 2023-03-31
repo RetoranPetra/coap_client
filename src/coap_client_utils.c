@@ -5,7 +5,7 @@
  */
 
 #include <zephyr/kernel.h>
-#include <coap_server_client_interface.h>
+#include <C:\Nordic\Git_apps\Message_On_Top_Server\coap_server\interface\coap_server_client_interface.h>
 #include <net/coap_utils.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/net/openthread.h>
@@ -13,16 +13,26 @@
 #include <openthread/thread.h>
 
 #include "coap_client_utils.h"
-
+//L
+#include <zephyr/drivers/gpio.h>
+//L
 LOG_MODULE_REGISTER(coap_client_utils, CONFIG_COAP_CLIENT_UTILS_LOG_LEVEL);
 
 #define RESPONSE_POLL_PERIOD 100
+
+//L
+const struct device *t_pulse = DEVICE_DT_GET(DT_NODELABEL(gpio1));
+//L
 
 static uint32_t poll_period;
 
 static bool is_connected;
 
 static struct k_work unicast_light_work;
+//L
+static struct k_work forward_motor_work;
+static struct k_work backward_motor_work;
+//L
 static struct k_work multicast_light_work;
 static struct k_work toggle_MTD_SED_work;
 static struct k_work provisioning_work;
@@ -59,6 +69,21 @@ static struct sockaddr_in6 unique_local_addr = {
 	.sin6_addr.s6_addr = {0, },
 	.sin6_scope_id = 0U
 };
+
+//L 
+//Created to configure the gpio pin so that it is not done within the message transmit function
+void gpio_init(void){
+	int ret;
+	if (!device_is_ready(t_pulse)){
+		LOG_ERR("Transmission pulse not ready\r\n");
+	}
+	ret = gpio_pin_configure(t_pulse, 1, GPIO_OUTPUT_INACTIVE);
+	if (ret < 0) {
+		LOG_ERR("Pin configuration failed");
+	}
+	LOG_DBG("GPIO pin configured\nCurrently at logic %d\n", gpio_pin_get(t_pulse, 1));
+}
+//L
 
 static bool is_mtd_in_med_mode(otInstance *instance)
 {
@@ -144,7 +169,8 @@ exit:
 
 static void toggle_one_light(struct k_work *item)
 {
-	uint8_t payload = (uint8_t)THREAD_COAP_UTILS_LIGHT_CMD_TOGGLE;
+	uint8_t payload = (uint8_t)THREAD_STOP_MOTORS;
+	int8_t power = 0;
 
 	ARG_UNUSED(item);
 
@@ -158,17 +184,61 @@ static void toggle_one_light(struct k_work *item)
 	coap_send_request(COAP_METHOD_PUT,
 			  (const struct sockaddr *)&unique_local_addr,
 			  light_option, &payload, sizeof(payload), NULL);
+
 }
 
-static void toggle_mesh_lights(struct k_work *item)
+//L
+static void motors_forward(struct k_work *item)
 {
-	static uint8_t command = (uint8_t)THREAD_COAP_UTILS_LIGHT_CMD_OFF;
+	uint8_t payload = (uint8_t)THREAD_DRIVE_MOTORS_FORWARD;
+	int8_t power = 0;
 
 	ARG_UNUSED(item);
 
-	command = ((command == THREAD_COAP_UTILS_LIGHT_CMD_OFF) ?
-			   THREAD_COAP_UTILS_LIGHT_CMD_ON :
-			   THREAD_COAP_UTILS_LIGHT_CMD_OFF);
+	if (unique_local_addr.sin6_addr.s6_addr16[0] == 0) {
+		LOG_WRN("Peer address not set. Activate 'provisioning' option "
+			"on the server side");
+		return;
+	}
+	LOG_INF("Send 'forward' request to: %s", unique_local_addr_str);
+	coap_send_request(COAP_METHOD_PUT,
+			  (const struct sockaddr *)&unique_local_addr,
+			  light_option, &payload, sizeof(payload), NULL);
+	
+}
+//L
+
+//L
+static void motors_backwards(struct k_work *item)
+{
+	uint8_t payload = (uint8_t)THREAD_DRIVE_MOTORS_BACKWARDS;
+	int8_t power = 0;
+
+	ARG_UNUSED(item);
+
+	if (unique_local_addr.sin6_addr.s6_addr16[0] == 0) {
+		LOG_WRN("Peer address not set. Activate 'provisioning' option "
+			"on the server side");
+		return;
+	}
+
+	LOG_INF("Send 'backwards' request to: %s", unique_local_addr_str);
+	coap_send_request(COAP_METHOD_PUT,
+			  (const struct sockaddr *)&unique_local_addr,
+			  light_option, &payload, sizeof(payload), NULL);
+	
+}
+//L
+
+static void toggle_mesh_lights(struct k_work *item)
+{
+	static uint8_t command = (uint8_t)THREAD_DRIVE_MOTORS_BACKWARDS;
+
+	ARG_UNUSED(item);
+
+	command = ((command == THREAD_DRIVE_MOTORS_BACKWARDS) ?
+			   THREAD_DRIVE_MOTORS_FORWARD :
+			   THREAD_STOP_MOTORS);
 
 	LOG_INF("Send multicast mesh 'light' request");
 	coap_send_request(COAP_METHOD_PUT,
@@ -249,12 +319,17 @@ static void genericSend(struct k_work *item) {
 	ARG_UNUSED(item);
 
 	LOG_DBG("Generic send to %s",unique_local_addr_str);
-
+	gpio_pin_set(t_pulse, 1, 1); //To check the time taken to send message
 	if (coap_send_request(COAP_METHOD_PUT,
 			  (const struct sockaddr *)&unique_local_addr,
 			  generic_option, messagePointer, GENERIC_PAYLOAD_SIZE, NULL) >= 0) {
-		
-		LOG_DBG("Generic message send success!\n%s",messagePointer);
+		gpio_pin_set(t_pulse, 1, 0); //To check the time taken to send 
+
+		/*gpio_pin_set(t_pulse, 1, 1);
+		k_msleep(500);
+		gpio_pin_set(t_pulse, 1, 0); //Consider turning the pulse off here so the analyser sees a pulse
+		*/
+		LOG_DBG("Transmission pulse sent!\nGPIO pin 1 set to %d\nGeneric message send success!\n%s", gpio_pin_get(t_pulse, 1), messagePointer);
 	}
 	else {
 		LOG_DBG("Generic message send fail.\n%s",messagePointer);
@@ -284,6 +359,10 @@ void coap_client_utils_init(ot_connection_cb_t on_connect,
 	k_work_init(&unicast_light_work, toggle_one_light);
 	k_work_init(&multicast_light_work, toggle_mesh_lights);
 	k_work_init(&provisioning_work, send_provisioning_request);
+	//L
+	k_work_init(&forward_motor_work, motors_forward);
+	k_work_init(&backward_motor_work, motors_backwards);
+	//L
 
 	k_work_init(&genericSend_work,genericSend);
 
@@ -301,7 +380,14 @@ void coap_client_toggle_one_light(void)
 {
 	submit_work_if_connected(&unicast_light_work);
 }
-
+//L
+void coap_client_motors_forward(void){
+	submit_work_if_connected(&forward_motor_work);
+}
+void coap_client_motors_backward(void){
+	submit_work_if_connected(&backward_motor_work);
+}
+//L
 void coap_client_toggle_mesh_lights(void)
 {
 	submit_work_if_connected(&multicast_light_work);

@@ -62,7 +62,11 @@ void coap_client_send_provisioning_request(void);
 void coap_client_toggle_minimal_sleepy_end_device(void);
 
 
-void coap_client_genericSend(char* msg);
+//void coap_client_genericSend(char* msg);
+//L
+void coap_client_motors_forward(void);
+void coap_client_motors_backward(void);
+//L
 
 #endif
 
