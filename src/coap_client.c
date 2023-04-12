@@ -14,6 +14,7 @@
 #include "coap_client_utils.h"
 //L
 #include <zephyr/drivers/gpio.h>
+#include <zephyr/drivers/uart.h>
 //L
 
 LOG_MODULE_REGISTER(coap_client, CONFIG_COAP_CLIENT_LOG_LEVEL);
@@ -21,10 +22,6 @@ LOG_MODULE_REGISTER(coap_client, CONFIG_COAP_CLIENT_LOG_LEVEL);
 #define OT_CONNECTION_LED DK_LED1
 #define BLE_CONNECTION_LED DK_LED2
 #define MTD_SED_LED DK_LED3
-
-//L
-//const struct device *t_pulse = DEVICE_DT_GET(DT_NODELABEL(gpio1));
-//L
 
 static void on_ot_connect(struct k_work *item)
 {
@@ -63,22 +60,21 @@ static void on_button_changed(uint32_t button_state, uint32_t has_changed)
 	uint32_t buttons = button_state & has_changed;
 
 	if (buttons & DK_BTN1_MSK) {
-		coap_client_motors_forward(); //Sends motors forward message
+		coap_client_toggle_one_light(); //Sends motors forward message
 	}
 
 	if (buttons & DK_BTN2_MSK) {
 		//coap_client_toggle_mesh_lights();
-		coap_client_toggle_one_light(); //Sends stop motor message
 
-		/*
-		char msg[GENERIC_PAYLOAD_SIZE] = "Hello world! I am a client.";
+		char msg[GENERIC_PAYLOAD_SIZE] = "50";
 		coap_client_genericSend(msg);
-		*/
 	}
 
 	if (buttons & DK_BTN3_MSK) {
 		//coap_client_toggle_minimal_sleepy_end_device();
-		coap_client_motors_backward(); //Sends motors backward message
+		//If this doesn't work convert to float at the server side
+		char my_float[FLOAT_PAYLOAD_SIZE] = "1.23456";
+		coap_client_floatSend(my_float);
 	}
 
 	if (buttons & DK_BTN4_MSK) {
@@ -92,10 +88,7 @@ void main(void)
 	k_msleep(1000);
 	
 	int ret;
-
 	LOG_INF("Start CoAP-client sample");
-
-	gpio_init();
 	
 	if (IS_ENABLED(CONFIG_RAM_POWER_DOWN_LIBRARY)) {
 		power_down_unused_ram();
@@ -113,16 +106,5 @@ void main(void)
 		return;
 	}
 
-	//Transmission pulse
-	//Check t_pulse ready
-	/*if (!device_is_ready(t_pulse)){
-		LOG_ERR("Transmission pulse not ready\r\n");
-		return 1 ;
-	}
-
-	ret = gpio_pin_configure(t_pulse, 1, GPIO_OUTPUT_INACTIVE);
-	if (ret < 0) {
-		return 1 ;
-	}*/
 	coap_client_utils_init(on_ot_connect, on_ot_disconnect, on_mtd_mode_toggle);
 }
