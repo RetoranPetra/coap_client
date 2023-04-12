@@ -281,7 +281,7 @@ static void floatSend(struct k_work *item) {
 	if (coap_send_request(COAP_METHOD_PUT,
 			  (const struct sockaddr *)&unique_local_addr,
 			  float_option, floatPointer, FLOAT_PAYLOAD_SIZE, NULL) >= 0) {
-		LOG_DBG("Float message send success as string\n%s sent!\nAs float: %f\n", floatPointer, atof(floatPointer));
+		LOG_DBG("Float message send success as string\n%s sent!\nAs 2dp float: %.2f\n", floatPointer, atof(floatPointer));
 	}
 	else {
 		LOG_DBG("Float message send fail.\n%s",floatPointer);
