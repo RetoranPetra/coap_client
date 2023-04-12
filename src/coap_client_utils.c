@@ -18,9 +18,11 @@ LOG_MODULE_REGISTER(coap_client_utils, CONFIG_COAP_CLIENT_UTILS_LOG_LEVEL);
 
 #define RESPONSE_POLL_PERIOD 100
 
+static int serverSelector = 0;
+
 static uint32_t poll_period;
 
-static bool is_connected;
+static bool is_connected[SERVERS];
 
 static struct k_work unicast_light_work;
 static struct k_work multicast_light_work;
@@ -52,13 +54,20 @@ static struct sockaddr_in6 multicast_local_addr = {
 };
 
 /* Variable for storing server address acquiring in provisioning handshake */
-static char unique_local_addr_str[INET6_ADDRSTRLEN];
-static struct sockaddr_in6 unique_local_addr = {
-	.sin6_family = AF_INET6,
-	.sin6_port = htons(COAP_PORT),
-	.sin6_addr.s6_addr = {0, },
-	.sin6_scope_id = 0U
+static char unique_local_addr_str[SERVERS][INET6_ADDRSTRLEN];
+static struct sockaddr_in6 unique_local_addr[SERVERS] = {
+	{.sin6_family = AF_INET6,.sin6_port = htons(COAP_PORT),.sin6_addr.s6_addr = {0, },.sin6_scope_id = 0U},
+	{.sin6_family = AF_INET6,.sin6_port = htons(COAP_PORT),.sin6_addr.s6_addr = {0, },.sin6_scope_id = 0U},
+	{.sin6_family = AF_INET6,.sin6_port = htons(COAP_PORT),.sin6_addr.s6_addr = {0, },.sin6_scope_id = 0U}
 };
+
+//m
+void serverScroll(void) {
+	serverSelector++;
+	serverSelector = serverSelector%SERVERS;
+	LOG_INF("Selected Server %i Address: %s",serverSelector,unique_local_addr_str[serverSelector]);
+}
+//m/
 
 static bool is_mtd_in_med_mode(otInstance *instance)
 {
@@ -117,22 +126,22 @@ static int on_provisioning_reply(const struct coap_packet *response,
 	payload = coap_packet_get_payload(response, &payload_size);
 
 	if (payload == NULL ||
-	    payload_size != sizeof(unique_local_addr.sin6_addr)) {
+	    payload_size != sizeof(unique_local_addr[serverSelector].sin6_addr)) {
 		LOG_ERR("Received data is invalid");
 		ret = -EINVAL;
 		goto exit;
 	}
 
-	memcpy(&unique_local_addr.sin6_addr, payload, payload_size);
+	memcpy(&unique_local_addr[serverSelector].sin6_addr, payload, payload_size);
 
-	if (!inet_ntop(AF_INET6, payload, unique_local_addr_str,
+	if (!inet_ntop(AF_INET6, payload, unique_local_addr_str[serverSelector],
 		       INET6_ADDRSTRLEN)) {
 		LOG_ERR("Received data is not IPv6 address: %d", errno);
 		ret = -errno;
 		goto exit;
 	}
 
-	LOG_INF("Received peer address: %s", unique_local_addr_str);
+	LOG_INF("Received peer address: %s", unique_local_addr_str[serverSelector]);
 
 exit:
 	if (IS_ENABLED(CONFIG_OPENTHREAD_MTD_SED)) {
@@ -148,15 +157,15 @@ static void toggle_one_light(struct k_work *item)
 
 	ARG_UNUSED(item);
 
-	if (unique_local_addr.sin6_addr.s6_addr16[0] == 0) {
+	if (unique_local_addr[serverSelector].sin6_addr.s6_addr16[0] == 0) {
 		LOG_WRN("Peer address not set. Activate 'provisioning' option "
 			"on the server side");
 		return;
 	}
 
-	LOG_INF("Send 'light' request to: %s", unique_local_addr_str);
+	LOG_INF("Send 'light' request to: %s", unique_local_addr_str[serverSelector]);
 	coap_send_request(COAP_METHOD_PUT,
-			  (const struct sockaddr *)&unique_local_addr,
+			  (const struct sockaddr *)&unique_local_addr[serverSelector],
 			  light_option, &payload, sizeof(payload), NULL);
 }
 
@@ -228,14 +237,14 @@ static void on_thread_state_changed(otChangedFlags flags, struct openthread_cont
 		case OT_DEVICE_ROLE_ROUTER:
 		case OT_DEVICE_ROLE_LEADER:
 			k_work_submit(&on_connect_work);
-			is_connected = true;
+			is_connected[serverSelector] = true;
 			break;
 
 		case OT_DEVICE_ROLE_DISABLED:
 		case OT_DEVICE_ROLE_DETACHED:
 		default:
 			k_work_submit(&on_disconnect_work);
-			is_connected = false;
+			is_connected[serverSelector] = false;
 			break;
 		}
 	}
@@ -248,10 +257,10 @@ static struct openthread_state_changed_cb ot_state_chaged_cb = {
 static void genericSend(struct k_work *item) {
 	ARG_UNUSED(item);
 
-	LOG_DBG("Generic send to %s",unique_local_addr_str);
+	LOG_DBG("Generic send to %s",unique_local_addr_str[serverSelector]);
 
 	if (coap_send_request(COAP_METHOD_PUT,
-			  (const struct sockaddr *)&unique_local_addr,
+			  (const struct sockaddr *)&unique_local_addr[serverSelector],
 			  generic_option, messagePointer, GENERIC_PAYLOAD_SIZE, NULL) >= 0) {
 		
 		LOG_DBG("Generic message send success!\n%s",messagePointer);

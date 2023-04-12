@@ -71,7 +71,7 @@ static void on_button_changed(uint32_t button_state, uint32_t has_changed)
 	}
 
 	if (buttons & DK_BTN3_MSK) {
-		coap_client_toggle_minimal_sleepy_end_device();
+		serverScroll();
 	}
 
 	if (buttons & DK_BTN4_MSK) {

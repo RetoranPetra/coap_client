@@ -64,6 +64,8 @@ void coap_client_toggle_minimal_sleepy_end_device(void);
 
 void coap_client_genericSend(char* msg);
 
+void serverScroll(void);
+
 #endif
 
 /**
