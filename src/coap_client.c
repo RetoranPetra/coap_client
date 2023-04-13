@@ -107,5 +107,5 @@ void main(void)
 	}
 
 	coap_client_utils_init(on_ot_connect, on_ot_disconnect, on_mtd_mode_toggle);
-	
+	otChannelManagerSetAutoChannelSelectionEnabled(openthread_get_default_instance(), false);
 }
