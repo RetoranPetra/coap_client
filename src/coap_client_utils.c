@@ -159,7 +159,6 @@ static void toggle_one_light(struct k_work *item)
 {
 	uint8_t payload = (uint8_t)THREAD_STOP_MOTORS;
 	//int8_t power = 0;
-
 	ARG_UNUSED(item);
 
 	if (unique_local_addr.sin6_addr.s6_addr16[0] == 0) {
@@ -172,6 +171,8 @@ static void toggle_one_light(struct k_work *item)
 	coap_send_request(COAP_METHOD_PUT,
 			  (const struct sockaddr *)&unique_local_addr,
 			  light_option, &payload, sizeof(payload), NULL);
+
+	LOG_DBG("Transmitting in channel: %d\n", nrf_802154_channel_get());
 
 }
 
@@ -276,7 +277,7 @@ static void genericSend(struct k_work *item) {
 //L
 static void floatSend(struct k_work *item) {
 	ARG_UNUSED(item);
-
+	
 	LOG_DBG("Float send to %s",unique_local_addr_str);
 	if (coap_send_request(COAP_METHOD_PUT,
 			  (const struct sockaddr *)&unique_local_addr,
@@ -288,7 +289,6 @@ static void floatSend(struct k_work *item) {
 	}
 }
 //L
-
 
 static void submit_work_if_connected(struct k_work *work)
 {
