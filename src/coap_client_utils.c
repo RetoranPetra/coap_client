@@ -173,6 +173,7 @@ static void toggle_one_light(struct k_work *item)
 			  light_option, &payload, sizeof(payload), NULL);
 
 	LOG_DBG("Transmitting in channel: %d\n", nrf_802154_channel_get());
+	
 
 }
 
