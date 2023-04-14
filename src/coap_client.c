@@ -89,7 +89,8 @@ void main(void)
 	
 	int ret;
 	LOG_INF("Start CoAP-client sample");
-	
+	gpio_init(); //Initialises the GPIO out
+
 	if (IS_ENABLED(CONFIG_RAM_POWER_DOWN_LIBRARY)) {
 		power_down_unused_ram();
 	}

@@ -287,15 +287,14 @@ static void floatSend(struct k_work *item) {
 
 	LOG_DBG("Float send to %s\nToggling GPIO",unique_local_addr_str);
 	gpio_pin_toggle(t_pulse, 2); //Toggles GPIO pin
-	for(i=0; i<100; i++){
+	for(i=0; i<10; i++){
 		if (coap_send_request(COAP_METHOD_PUT,
 			  (const struct sockaddr *)&unique_local_addr,
 			  float_option, floatPointer, FLOAT_PAYLOAD_SIZE, NULL) >= 0) {
-			gpio_pin_toggle(t_pulse, 1); //Toggled to record the time taken to receive a message from toggling it
-			LOG_DBG("Float message send success as string\n%s sent!\nIteration: %d\n", floatPointer, i);
+			gpio_pin_toggle(t_pulse, 1); //Toggled to record the time taken to send a message and the time between messages being sent
 		}
 		else {
-			LOG_DBG("Float message send fail.\n%s",floatPointer);
+			LOG_WRN("Float message send fail.\n%s",floatPointer);
 		}
 	}
 	gpio_pin_toggle(t_pulse, 2); //Toggles pin 2 to measure the time taken to send 10 messages
