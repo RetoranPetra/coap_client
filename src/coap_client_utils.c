@@ -18,7 +18,9 @@
 #include <stdlib.h>
 //L
 LOG_MODULE_REGISTER(coap_client_utils, CONFIG_COAP_CLIENT_UTILS_LOG_LEVEL);
-
+//L
+const struct device *t_pulse = DEVICE_DT_GET(DT_NODELABEL(gpio1));
+//L
 #define RESPONSE_POLL_PERIOD 100
 
 
@@ -273,19 +275,30 @@ static void genericSend(struct k_work *item) {
 		LOG_DBG("Generic message send fail.\n%s",messagePointer);
 	}
 }
+void gpio_init(void){
+	gpio_pin_configure(t_pulse, 1, GPIO_OUTPUT_INACTIVE);
+	gpio_pin_configure(t_pulse, 2, GPIO_OUTPUT_INACTIVE);
+	LOG_DBG("GPIO pins P1.01 and P1.02 configured to logic level 0");
+}
 //L
 static void floatSend(struct k_work *item) {
 	ARG_UNUSED(item);
+	int i=0; //For the loop
 
-	LOG_DBG("Float send to %s",unique_local_addr_str);
-	if (coap_send_request(COAP_METHOD_PUT,
+	LOG_DBG("Float send to %s\nToggling GPIO",unique_local_addr_str);
+	gpio_pin_toggle(t_pulse, 2); //Toggles GPIO pin
+	for(i=0; i<100; i++){
+		if (coap_send_request(COAP_METHOD_PUT,
 			  (const struct sockaddr *)&unique_local_addr,
 			  float_option, floatPointer, FLOAT_PAYLOAD_SIZE, NULL) >= 0) {
-		LOG_DBG("Float message send success as string\n%s sent!\nAs 2dp float: %.2f\n", floatPointer, atof(floatPointer));
+			gpio_pin_toggle(t_pulse, 1); //Toggled to record the time taken to receive a message from toggling it
+			LOG_DBG("Float message send success as string\n%s sent!\nIteration: %d\n", floatPointer, i);
+		}
+		else {
+			LOG_DBG("Float message send fail.\n%s",floatPointer);
+		}
 	}
-	else {
-		LOG_DBG("Float message send fail.\n%s",floatPointer);
-	}
+	gpio_pin_toggle(t_pulse, 2); //Toggles pin 2 to measure the time taken to send 10 messages
 }
 //L
 
