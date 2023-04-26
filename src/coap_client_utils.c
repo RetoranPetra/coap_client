@@ -39,6 +39,8 @@ static struct k_work genericSend_work;
 static struct k_work floatSend_work;
 static int serverSelector = 0;
 
+const struct device *t_pulse = DEVICE_DT_GET(DT_NODELABEL(gpio1));
+
 //L
 
 //Must point to something of size GENERIC_PAYLOAD_SIZE
@@ -313,6 +315,12 @@ static void floatSend(struct k_work *item) {
 }
 //L
 
+void gpio_init(void){
+	gpio_pin_configure(t_pulse, 1, GPIO_OUTPUT_INACTIVE);
+	gpio_pin_configure(t_pulse, 2, GPIO_OUTPUT_INACTIVE);
+	LOG_DBG("GPIO pins P1.01 and P1.02 configured to logic level 0");
+}
+//L
 
 static void submit_work_if_connected(struct k_work *work)
 {

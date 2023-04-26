@@ -66,6 +66,7 @@ void coap_client_floatSend(double num);
 void coap_client_genericSend(char* msg);
 
 void serverScroll(void);
+void gpio_init(void);
 //L
 
 #endif
