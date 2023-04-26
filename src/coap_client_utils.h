@@ -62,8 +62,10 @@ void coap_client_send_provisioning_request(void);
 void coap_client_toggle_minimal_sleepy_end_device(void);
 
 //L
-void coap_client_floatSend(char* num);
+void coap_client_floatSend(double num);
 void coap_client_genericSend(char* msg);
+
+void serverScroll(void);
 //L
 
 #endif

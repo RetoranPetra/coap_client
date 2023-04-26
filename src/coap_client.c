@@ -73,8 +73,7 @@ static void on_button_changed(uint32_t button_state, uint32_t has_changed)
 	if (buttons & DK_BTN3_MSK) {
 		//coap_client_toggle_minimal_sleepy_end_device();
 		//If this doesn't work convert to float at the server side
-		char my_float[FLOAT_PAYLOAD_SIZE] = "1.23456";
-		coap_client_floatSend(my_float);
+		coap_client_floatSend(1.23456);
 	}
 
 	if (buttons & DK_BTN4_MSK) {

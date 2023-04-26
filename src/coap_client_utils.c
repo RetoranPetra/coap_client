@@ -37,11 +37,13 @@ static struct k_work on_disconnect_work;
 static struct k_work genericSend_work;
 //L
 static struct k_work floatSend_work;
+static int serverSelector = 0;
+
 //L
 
 //Must point to something of size GENERIC_PAYLOAD_SIZE
 static char messagePointer[GENERIC_PAYLOAD_SIZE]= {};
-static char floatPointer[FLOAT_PAYLOAD_SIZE] = {};
+static double floatPointer[1] = {};
 //static float floatPointer[FLOAT_PAYLOAD_SIZE] = {};
 
 mtd_mode_toggle_cb_t on_mtd_mode_toggle;
@@ -64,14 +66,38 @@ static struct sockaddr_in6 multicast_local_addr = {
 };
 
 /* Variable for storing server address acquiring in provisioning handshake */
-static char unique_local_addr_str[INET6_ADDRSTRLEN];
-static struct sockaddr_in6 unique_local_addr = {
-	.sin6_family = AF_INET6,
-	.sin6_port = htons(COAP_PORT),
-	.sin6_addr.s6_addr = {0, },
-	.sin6_scope_id = 0U
-};
+static char unique_local_addr_str[SERVERS][INET6_ADDRSTRLEN];
+static struct sockaddr_in6 unique_local_addr[SERVERS] = {
+	 {.sin6_family = AF_INET6,
+     .sin6_port = htons(COAP_PORT),
+     .sin6_addr.s6_addr =
+         {
+             0,
+         },
+     .sin6_scope_id = 0U},
+    {.sin6_family = AF_INET6,
+     .sin6_port = htons(COAP_PORT),
+     .sin6_addr.s6_addr =
+         {
+             0,
+         },
+     .sin6_scope_id = 0U},
+    {.sin6_family = AF_INET6,
+     .sin6_port = htons(COAP_PORT),
+     .sin6_addr.s6_addr =
+         {
+             0,
+         },
+     .sin6_scope_id = 0U}};
 
+// m
+void serverScroll(void) {
+  serverSelector++;
+  serverSelector = serverSelector % SERVERS;
+  LOG_INF("Selected Server %i Address: %s", serverSelector,
+          unique_local_addr_str[serverSelector]);
+}
+// m/
 
 static bool is_mtd_in_med_mode(otInstance *instance)
 {
@@ -130,22 +156,22 @@ static int on_provisioning_reply(const struct coap_packet *response,
 	payload = coap_packet_get_payload(response, &payload_size);
 
 	if (payload == NULL ||
-	    payload_size != sizeof(unique_local_addr.sin6_addr)) {
+	    payload_size != sizeof(unique_local_addr[serverSelector].sin6_addr)) {
 		LOG_ERR("Received data is invalid");
 		ret = -EINVAL;
 		goto exit;
 	}
 
-	memcpy(&unique_local_addr.sin6_addr, payload, payload_size);
+	memcpy(&unique_local_addr[serverSelector].sin6_addr, payload, payload_size);
 
-	if (!inet_ntop(AF_INET6, payload, unique_local_addr_str,
+	if (!inet_ntop(AF_INET6, payload, unique_local_addr_str[serverSelector],
 		       INET6_ADDRSTRLEN)) {
 		LOG_ERR("Received data is not IPv6 address: %d", errno);
 		ret = -errno;
 		goto exit;
 	}
 
-	LOG_INF("Received peer address: %s", unique_local_addr_str);
+	LOG_INF("Received peer address: %s", unique_local_addr_str[serverSelector]);
 
 exit:
 	if (IS_ENABLED(CONFIG_OPENTHREAD_MTD_SED)) {
@@ -157,33 +183,31 @@ exit:
 
 static void toggle_one_light(struct k_work *item)
 {
-	uint8_t payload = (uint8_t)THREAD_STOP_MOTORS;
-	//int8_t power = 0;
+uint8_t payload = (uint8_t)THREAD_COAP_UTILS_LIGHT_CMD_TOGGLE;
 
-	ARG_UNUSED(item);
+ARG_UNUSED(item);
 
-	if (unique_local_addr.sin6_addr.s6_addr16[0] == 0) {
-		LOG_WRN("Peer address not set. Activate 'provisioning' option "
-			"on the server side");
-		return;
-	}
+  if (unique_local_addr[serverSelector].sin6_addr.s6_addr16[0] == 0) {
+    LOG_WRN("Peer address not set. Activate 'provisioning' option "
+            "on the server side");
+    return;
+  }
 
-	LOG_INF("Send 'light' request to: %s", unique_local_addr_str);
-	coap_send_request(COAP_METHOD_PUT,
-			  (const struct sockaddr *)&unique_local_addr,
-			  light_option, &payload, sizeof(payload), NULL);
-
+  LOG_INF("Send 'light' request to: %s", unique_local_addr_str[serverSelector]);
+  coap_send_request(COAP_METHOD_PUT,
+                    (const struct sockaddr *)&unique_local_addr[serverSelector],
+                    light_option, &payload, sizeof(payload), NULL);
 }
 
 static void toggle_mesh_lights(struct k_work *item)
 {
-	static uint8_t command = (uint8_t)THREAD_DRIVE_MOTORS_BACKWARDS;
+	static uint8_t command = (uint8_t)THREAD_COAP_UTILS_LIGHT_CMD_OFF;
 
 	ARG_UNUSED(item);
 
-	command = ((command == THREAD_DRIVE_MOTORS_BACKWARDS) ?
-			   THREAD_DRIVE_MOTORS_FORWARD :
-			   THREAD_STOP_MOTORS);
+	command = ((command == THREAD_COAP_UTILS_LIGHT_CMD_OFF) ?
+			   THREAD_COAP_UTILS_LIGHT_CMD_ON :
+			   THREAD_COAP_UTILS_LIGHT_CMD_OFF);
 
 	LOG_INF("Send multicast mesh 'light' request");
 	coap_send_request(COAP_METHOD_PUT,
@@ -263,9 +287,9 @@ static struct openthread_state_changed_cb ot_state_chaged_cb = {
 static void genericSend(struct k_work *item) {
 	ARG_UNUSED(item);
 
-	LOG_DBG("Generic send to %s",unique_local_addr_str);
+	LOG_DBG("Generic send to %s",unique_local_addr_str[serverSelector]);
 	if (coap_send_request(COAP_METHOD_PUT,
-			  (const struct sockaddr *)&unique_local_addr,
+			  (const struct sockaddr *)&unique_local_addr[serverSelector],
 			  generic_option, messagePointer, GENERIC_PAYLOAD_SIZE, NULL) >= 0) {
 		LOG_DBG("Message Sent!\n %s Sent!\n", messagePointer);
 	}
@@ -276,15 +300,15 @@ static void genericSend(struct k_work *item) {
 //L
 static void floatSend(struct k_work *item) {
 	ARG_UNUSED(item);
+	LOG_DBG("Float send to %s", unique_local_addr_str[serverSelector]);
+	if (coap_send_request(
+			COAP_METHOD_PUT,
+			(const struct sockaddr *)&unique_local_addr[serverSelector],
+			float_option, (char *)floatPointer, sizeof(double), NULL) >= 0) {
 
-	LOG_DBG("Float send to %s",unique_local_addr_str);
-	if (coap_send_request(COAP_METHOD_PUT,
-			  (const struct sockaddr *)&unique_local_addr,
-			  float_option, floatPointer, FLOAT_PAYLOAD_SIZE, NULL) >= 0) {
-		LOG_DBG("Float message send success as string\n%s sent!\nAs 2dp float: %.2f\n", floatPointer, atof(floatPointer));
-	}
-	else {
-		LOG_DBG("Float message send fail.\n%s",floatPointer);
+	LOG_DBG("Float message send success!\n%.3f", *floatPointer);
+	} else {
+	LOG_DBG("Float message send fail.\n%.3f", *floatPointer);
 	}
 }
 //L
@@ -346,8 +370,8 @@ void coap_client_genericSend(char* msg) {
 	submit_work_if_connected(&genericSend_work);
 }
 
-void coap_client_floatSend(char* num) {
-	memcpy(floatPointer,num,FLOAT_PAYLOAD_SIZE);
+void coap_client_floatSend(double num) {
+	memcpy(floatPointer, &num, sizeof(double));
 	submit_work_if_connected(&floatSend_work);
 }
 
