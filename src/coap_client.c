@@ -60,7 +60,9 @@ static void on_button_changed(uint32_t button_state, uint32_t has_changed)
 	uint32_t buttons = button_state & has_changed;
 
 	if (buttons & DK_BTN1_MSK) {
-		coap_client_toggle_one_light(); //Sends motors forward message
+		//coap_client_toggle_one_light(); //Sends motors forward message
+		coap_client_floatSend(0.2);
+
 	}
 
 	if (buttons & DK_BTN2_MSK) {
@@ -73,7 +75,7 @@ static void on_button_changed(uint32_t button_state, uint32_t has_changed)
 	if (buttons & DK_BTN3_MSK) {
 		//coap_client_toggle_minimal_sleepy_end_device();
 		//If this doesn't work convert to float at the server side
-		coap_client_floatSend(1.23456);
+		coap_client_floatSend(0.8);
 	}
 
 	if (buttons & DK_BTN4_MSK) {
@@ -106,4 +108,5 @@ void main(void)
 	}
 
 	coap_client_utils_init(on_ot_connect, on_ot_disconnect, on_mtd_mode_toggle);
+	//otPlatRadioSetChannelMaxTransmitPower(openthread_get_default_instance(), 11, 0);
 }
