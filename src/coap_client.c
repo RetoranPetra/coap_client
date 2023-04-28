@@ -15,6 +15,9 @@
 //L
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/uart.h>
+#include <stdlib.h>
+#include <zephyr/drivers/ieee802154/cc1200.h>
+#include <nrf_802154.h>
 //L
 
 LOG_MODULE_REGISTER(coap_client, CONFIG_COAP_CLIENT_LOG_LEVEL);
@@ -61,8 +64,10 @@ static void on_button_changed(uint32_t button_state, uint32_t has_changed)
 
 	if (buttons & DK_BTN1_MSK) {
 		//coap_client_toggle_one_light(); //Sends motors forward message
+		
+		nrf_802154_tx_power_set(-18);
 		coap_client_floatSend(0.2);
-
+		LOG_DBG("Channel power set to %d dBm\n", nrf_802154_tx_power_get());
 	}
 
 	if (buttons & DK_BTN2_MSK) {
@@ -75,7 +80,9 @@ static void on_button_changed(uint32_t button_state, uint32_t has_changed)
 	if (buttons & DK_BTN3_MSK) {
 		//coap_client_toggle_minimal_sleepy_end_device();
 		//If this doesn't work convert to float at the server side
+		nrf_802154_tx_power_set(0);
 		coap_client_floatSend(0.8);
+		LOG_DBG("Channel power set to %d dBm\n", nrf_802154_tx_power_get());
 	}
 
 	if (buttons & DK_BTN4_MSK) {
@@ -108,5 +115,6 @@ void main(void)
 	}
 
 	coap_client_utils_init(on_ot_connect, on_ot_disconnect, on_mtd_mode_toggle);
+	gpio_init();
 	//otPlatRadioSetChannelMaxTransmitPower(openthread_get_default_instance(), 11, 0);
 }

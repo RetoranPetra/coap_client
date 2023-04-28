@@ -154,7 +154,9 @@ static int on_provisioning_reply(const struct coap_packet *response,
 
 	ARG_UNUSED(reply);
 	ARG_UNUSED(from);
-
+	//L
+	gpio_pin_toggle(t_pulse, 2); //To test RTT
+	//L
 	payload = coap_packet_get_payload(response, &payload_size);
 
 	if (payload == NULL ||
@@ -230,6 +232,10 @@ static void send_provisioning_request(struct k_work *item)
 	coap_send_request(COAP_METHOD_GET,
 			  (const struct sockaddr *)&multicast_local_addr,
 			  provisioning_option, NULL, 0u, on_provisioning_reply);
+	//L
+	gpio_pin_toggle(t_pulse, 2);
+	//L
+
 }
 
 static void toggle_minimal_sleepy_end_device(struct k_work *item)
