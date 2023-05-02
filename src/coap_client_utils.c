@@ -154,9 +154,6 @@ static int on_provisioning_reply(const struct coap_packet *response,
 
 	ARG_UNUSED(reply);
 	ARG_UNUSED(from);
-	//L
-	gpio_pin_toggle(t_pulse, 2); //To test RTT
-	//L
 	payload = coap_packet_get_payload(response, &payload_size);
 
 	if (payload == NULL ||
@@ -176,6 +173,11 @@ static int on_provisioning_reply(const struct coap_packet *response,
 	}
 
 	LOG_INF("Received peer address: %s", unique_local_addr_str[serverSelector]);
+	//For infinite loop
+	//L
+	gpio_pin_set(t_pulse, 2, 0); //To test RTT
+	k_msleep(5); //Wait for 5ms between sends to even out
+	//L
 
 exit:
 	if (IS_ENABLED(CONFIG_OPENTHREAD_MTD_SED)) {
@@ -232,9 +234,6 @@ static void send_provisioning_request(struct k_work *item)
 	coap_send_request(COAP_METHOD_GET,
 			  (const struct sockaddr *)&multicast_local_addr,
 			  provisioning_option, NULL, 0u, on_provisioning_reply);
-	//L
-	gpio_pin_toggle(t_pulse, 2);
-	//L
 
 }
 
@@ -382,6 +381,7 @@ void coap_client_toggle_mesh_lights(void)
 void coap_client_send_provisioning_request(void)
 {
 	submit_work_if_connected(&provisioning_work);
+	gpio_pin_set(t_pulse, 2, 1);
 }
 
 void coap_client_genericSend(char* msg) {
