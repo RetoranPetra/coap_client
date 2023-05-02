@@ -74,6 +74,8 @@ static void on_button_changed(uint32_t button_state, uint32_t has_changed)
 		//coap_client_toggle_mesh_lights();
 		nrf_802154_tx_power_set(0);
 		coap_client_floatSend(0.8);
+		LOG_DBG("Channel power set to %d dBm\n", nrf_802154_tx_power_get());
+
 	/*
 		char msg[GENERIC_PAYLOAD_SIZE] = "Generic Text";
 		coap_client_genericSend(msg);
