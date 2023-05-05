@@ -304,7 +304,7 @@ static void floatSend(struct k_work *item) {
 	ARG_UNUSED(item);
 	LOG_DBG("Float send to %s", unique_local_addr_str[serverSelector]);
 	double n = floatPointer[0];
-	for(int i=0; i<1000; i++){
+	for(int i=0; i<10; i++){
 		if (coap_send_request(
 				COAP_METHOD_PUT,
 				(const struct sockaddr *)&unique_local_addr[serverSelector],
@@ -314,7 +314,8 @@ static void floatSend(struct k_work *item) {
 		gpio_pin_toggle(t_pulse, 1);
 		n++;
 		memcpy(floatPointer, &n, sizeof(double));
-		//k_msleep(0);	
+		k_msleep(20);
+
 	}
 
 }
